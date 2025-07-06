@@ -19,8 +19,54 @@ Dependencies:
 pip install pillow piexif
 
 
+
+
+## 🛠️ Workflow: How to Use
+**1. Export the email**
+Drag an email out of your email client (e.g. Thunderbird, Outlook) and drop it into a folder on your computer as a .eml file.
+Make sure it’s named like original.eml.
+
+**2. Run the script**
+bash
+Zkopírovat kód
+python email_resizer.py
+This will:
+
+Load original.eml
+
+Resize all image attachments (if needed)
+
+Save a new email file: resized.eml
+
+**3. Replace the email in your client**
+Delete the original email (optional, to save space)
+
+Import resized.eml back into your email client (e.g., drag it into a folder)
+
+📝 Notes
+Only works on .eml files (RFC 822 format, supported by most clients)
+
+The body, subject, sender, and all text content remain unchanged
+
+EXIF metadata is preserved, and image orientation is corrected
+
+Inline images (embedded in HTML) are not yet resized
+
+**🔒 Why This Matters**
+
+Cloud email providers (like Gmail, Outlook.com) do not provide easy tools to reduce email size. They may even make it intentionally difficult to modify existing emails, especially if you're reaching storage limits. This tool gives you back control.
+
+
+
+| Original                            | After Resize                            |
+| ----------------------------------- | --------------------------------------- |
+| 26 MB `.eml` with 6 full-res photos | 2.1 MB `.eml`, identical appearance     |
+| Images: 4000x3000, 3–4 MB each      | Resized to 1920x1080, \~100–200 KB each |
+
+
 ## Example saving 
 ![image](https://github.com/user-attachments/assets/a0e2f9cb-c344-4eaa-b69a-e2df820768ff)
+
 
 ## Example output 
    > 📩 Loading email: original.eml
