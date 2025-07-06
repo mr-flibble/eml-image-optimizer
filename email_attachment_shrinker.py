@@ -1,122 +1,80 @@
-import io
-from email import message_from_binary_file, policy
-from email.generator import BytesGenerator
+import email
 from email.message import EmailMessage
-from PIL import Image, ExifTags
-import email.encoders
+from email.generator import BytesGenerator
+import io
+from PIL import Image, ImageOps
+import piexif
+import base64
 
-MAX_WIDTH = 1920
-MAX_HEIGHT = 1080
-JPEG_QUALITY = 90
+def resize_image(data):
+    img = Image.open(io.BytesIO(data))
 
-def fix_exif_orientation(img):
-    try:
-        for orientation in ExifTags.TAGS.keys():
-            if ExifTags.TAGS[orientation] == 'Orientation':
-                break
-        exif = img._getexif()
-        if exif is not None:
-            orientation_value = exif.get(orientation)
-            if orientation_value == 3:
-                img = img.rotate(180, expand=True)
-            elif orientation_value == 6:
-                img = img.rotate(270, expand=True)
-            elif orientation_value == 8:
-                img = img.rotate(90, expand=True)
-    except Exception:
-        pass
-    return img
+    # Load original EXIF data
+    exif_dict = piexif.load(img.info.get('exif', b''))
 
-def resize_image(image_data):
-    with Image.open(io.BytesIO(image_data)) as img:
-        img = fix_exif_orientation(img)
-        original_size = img.size
+    # Physically rotate image according to EXIF orientation
+    img = ImageOps.exif_transpose(img)
 
-        # Resize preserving aspect ratio and max width/height
-        img.thumbnail((MAX_WIDTH, MAX_HEIGHT), Image.LANCZOS)
+    # Remove orientation tag from EXIF (0x0112) as image is now physically oriented
+    if '0th' in exif_dict and piexif.ImageIFD.Orientation in exif_dict['0th']:
+        exif_dict['0th'].pop(piexif.ImageIFD.Orientation, None)
 
-        out = io.BytesIO()
-        exif_bytes = img.info.get('exif')
-        if exif_bytes:
-            img.save(out, format="JPEG", optimize=True, quality=JPEG_QUALITY, exif=exif_bytes)
-        else:
-            img.save(out, format="JPEG", optimize=True, quality=JPEG_QUALITY)
+    # Resize image, max 1920x1080 keeping aspect ratio
+    max_size = (1920, 1080)
+    img.thumbnail(max_size, Image.LANCZOS)
 
-        new_data = out.getvalue()
+    out = io.BytesIO()
+    exif_bytes = piexif.dump(exif_dict)
+    img.save(out, format="JPEG", quality=90, optimize=True, exif=exif_bytes)
+    return out.getvalue()
 
-        print(f"    > Original size: {round(len(image_data)/1024)} KB")
-        print(f"    > Resized to: {img.size[0]}x{img.size[1]}")
-        print(f"    > New size: {round(len(new_data)/1024)} KB")
-
-        return new_data
-
-from email.mime.base import MIMEBase
-from email import encoders
-
-def create_resized_attachment(filename, resized_data):
-    part = MIMEBase('image', 'jpeg')
-    part.set_payload(resized_data)
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', 'attachment', filename=filename)
-    return part
-
-def process_parts(part, depth=0):
+def process_parts(msg, depth=0):
     indent = "  " * depth
-    if part.is_multipart():
-        subtype = part.get_content_subtype()
-        print(f"{indent}📦 Multipart type: {part.get_content_type()}")
-        new_container = EmailMessage()
-        new_container.set_type(part.get_content_type())
-
-        # Copy relevant headers except some managed by EmailMessage automatically
-        for key, value in part.items():
-            if key.lower() not in ['content-type', 'mime-version', 'content-transfer-encoding']:
-                new_container[key] = value
-
-        for subpart in part.iter_parts():
-            new_subpart = process_parts(subpart, depth + 1)
-            new_container.attach(new_subpart)
-
-        return new_container
+    if msg.is_multipart():
+        print(f"{indent}📦 Multipart type: {msg.get_content_type()}")
+        new_parts = []
+        for part in msg.get_payload():
+            new_part = process_parts(part, depth + 1)
+            new_parts.append(new_part)
+        msg.set_payload(new_parts)
+        return msg
     else:
-        ctype = part.get_content_type()
-        disp = part.get_content_disposition()
-        fname = part.get_filename()
-
-        print(f"{indent}🔍 Part: {ctype} | Disposition: {disp} | Filename: {fname}")
-
-        # Only modify JPEG attachments
-        if ctype == "image/jpeg" and disp == "attachment" and fname:
-            print(f"{indent}🛠️  Processing attachment: {fname}")
-            original_data = part.get_payload(decode=True)
+        ctype = msg.get_content_type()
+        disp = msg.get("Content-Disposition", None)
+        filename = msg.get_filename()
+        print(f"{indent}🔍 Part: {ctype} | Disposition: {disp} | Filename: {filename}")
+        if disp and disp.startswith("attachment") and ctype.startswith("image/") and filename:
+            print(f"{indent}🛠️ Processing attachment: {filename}")
+            original_data = msg.get_payload(decode=True)
             resized_data = resize_image(original_data)
-            return create_resized_attachment(fname, resized_data)
+            print(f"{indent}> Original size: {len(original_data)//1024} KB")
+            img = Image.open(io.BytesIO(resized_data))
+            print(f"{indent}> Resized to: {img.width}x{img.height}")
+            print(f"{indent}> New size: {len(resized_data)//1024} KB")
 
             new_part = EmailMessage()
-            new_part.set_content(resized_data, maintype='image', subtype='jpeg')
-            # Odstraníme případnou existující hlavičku před přidáním base64
-            if 'Content-Transfer-Encoding' in new_part:
-                del new_part['Content-Transfer-Encoding']
-            new_part.add_header('Content-Disposition', 'attachment', filename=fname)
-            email.encoders.encode_base64(new_part)
-
+            new_part.set_type(ctype)
+            new_part.add_header("Content-Disposition", "attachment", filename=filename)
+            new_part.add_header('Content-Transfer-Encoding', 'base64')
+            new_part.set_payload(base64.b64encode(resized_data).decode('ascii'))
             return new_part
         else:
-            print(f"{indent}✅ Not a target for resizing, keeping original.")
-            return part
+            print(f"{indent}✅ Not an image attachment to resize, leaving unchanged")
+            return msg
 
 def process_eml(input_path, output_path):
-    print(f"📩 Loading email: {input_path}")
-    with open(input_path, 'rb') as f:
-        msg = message_from_binary_file(f, policy=policy.default)
+    print(f"📩 Loading email file: {input_path}")
+    with open(input_path, "rb") as f:
+        msg = email.message_from_binary_file(f)
 
-    print("🔄 Processing email parts...\n")
+    print("🔄 Processing email parts...")
     updated_msg = process_parts(msg)
 
-    print("\n💾 Saving modified email...")
-    with open(output_path, 'wb') as f:
+    print("💾 Saving processed email...")
+    with open(output_path, "wb") as f:
         BytesGenerator(f).flatten(updated_msg)
-    print(f"✅ Saved as: {output_path}")
+
+    print(f"✅ Processed email saved as {output_path}")
 
 if __name__ == "__main__":
     process_eml("original.eml", "resized.eml")
