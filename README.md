@@ -15,6 +15,8 @@ This Python script processes `.eml` email files and reduces the size of embedded
 
 If you have `.eml` emails with large photo attachments (3–5 MB each), this tool can shrink the total email size by over 90% – perfect for reducing IMAP storage, backups, or long-term archiving.
 
+## Example saving 
+![image](https://github.com/user-attachments/assets/a0e2f9cb-c344-4eaa-b69a-e2df820768ff)
 
 ## Example output 
 📩 Loading email: original.eml
@@ -98,5 +100,6 @@ If you have `.eml` emails with large photo attachments (3–5 MB each), this too
     > Original size: 2978 KB
 
     > Resized to: 1440x1080
+
 
     > New size: 169 KB
