@@ -96,7 +96,9 @@ def process_parts(msg, depth=0):
 def process_eml(input_path, output_path):
     print(f"📩 Loading email file: {input_path}")
     with open(input_path, "rb") as f:
-        msg = email.message_from_binary_file(f)
+        # Řešení: Import a použití politiky přímo zde na jednom řádku
+        from email import policy
+        msg = email.message_from_binary_file(f, policy=policy.default)
 
     print("🔄 Processing email parts...")
     updated_msg = process_parts(msg)
