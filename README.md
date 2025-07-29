@@ -27,9 +27,7 @@ Drag an email out of your email client (e.g. Thunderbird, Outlook) and drop it i
 Make sure it’s named like original.eml.
 
 **2. Run the script**
-bash
-Zkopírovat kód
-python email_resizer.py
+python python email_resizer.py
 This will:
 
 Load original.eml
