@@ -13,7 +13,7 @@ This Python script processes `.eml` email files and reduces the size of embedded
 
 ## Use Case
 
-If you have `.eml` emails with large photo attachments (3–5 MB each), this tool can shrink the total email size by over 90% – perfect for reducing IMAP storage, backups, or long-term archiving.
+If you have `.eml` emails with large photo attachments (3–5 MB each) or large inline (embedded) images, this tool can shrink the total email size by over 90% – perfect for reducing IMAP storage, backups, or long-term archiving.
 
 Dependencies:
 pip install pillow piexif
@@ -27,9 +27,7 @@ Drag an email out of your email client (e.g. Thunderbird, Outlook) and drop it i
 Make sure it’s named like original.eml.
 
 **2. Run the script**
-bash
-Zkopírovat kód
-python email_resizer.py
+python python email_resizer.py
 This will:
 
 Load original.eml
@@ -50,7 +48,6 @@ The body, subject, sender, and all text content remain unchanged
 
 EXIF metadata is preserved, and image orientation is corrected
 
-Inline images (embedded in HTML) are not yet resized
 
 **🔒 Why This Matters**
 
