@@ -96,19 +96,20 @@ def process_parts(msg, depth=0):
 def process_eml(input_path, output_path):
     print(f"📩 Loading email file: {input_path}")
     with open(input_path, "rb") as f:
-        # Řešení: Import a použití politiky přímo zde na jednom řádku
         from email import policy
-        msg = email.message_from_binary_file(f, policy=policy.default)
+        #create a custom policy with max_line_length set to 0
+        custom_policy = policy.default.clone(max_line_length=0)
+        #this policy we use to read the email
+        msg = email.message_from_binary_file(f, policy=custom_policy)
 
     print("🔄 Processing email parts...")
     updated_msg = process_parts(msg)
 
     print("💾 Saving processed email...")
-    updated_msg.add_header(    "X-Resized-By",    f"eml-image-optimizer; {datetime.utcnow().isoformat()}Z; https://github.com/mr-flibble/eml-image-optimizer"
-)
-
+    updated_msg.add_header("X-Resized-By", f"eml-image-optimizer; {datetime.utcnow().isoformat()}Z; https://github.com/mr-flibble/eml-image-optimizer")
 
     with open(output_path, "wb") as f:
+        #Generator will take the updated policy from `updated_msg` and will not wrap lines
         BytesGenerator(f).flatten(updated_msg)
 
     print(f"✅ Processed email saved as {output_path}")
