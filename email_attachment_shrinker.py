@@ -6,8 +6,18 @@ from PIL import Image, ImageOps
 import piexif
 import base64
 
+#Description: Resize images in email attachments to a maximum of 1920x1080 pixels while preserving aspect ratio.
 def resize_image(data):
     img = Image.open(io.BytesIO(data))
+    
+    # If the image has an alpha channel (transparency), it will be converted to RGB
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        alpha = img.convert("RGBA").split()[-1]
+        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))  # bílé pozadí
+        bg.paste(img, mask=alpha)
+        img = bg.convert("RGB")
+    else:
+        img = img.convert("RGB")
 
     # Load original EXIF data
     try:
@@ -17,10 +27,8 @@ def resize_image(data):
         print(f"⚠️ EXIF load failed: {e}")
         exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
 
-
     # Physically rotate image according to EXIF orientation
     img = ImageOps.exif_transpose(img)
-
     # Remove orientation tag from EXIF (0x0112) as image is now physically oriented
     if '0th' in exif_dict and piexif.ImageIFD.Orientation in exif_dict['0th']:
         exif_dict['0th'].pop(piexif.ImageIFD.Orientation, None)
