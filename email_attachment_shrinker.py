@@ -10,7 +10,13 @@ def resize_image(data):
     img = Image.open(io.BytesIO(data))
 
     # Load original EXIF data
-    exif_dict = piexif.load(img.info.get('exif', b''))
+    try:
+        exif_raw = img.info.get('exif')
+        exif_dict = piexif.load(exif_raw) if exif_raw else {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
+    except Exception as e:
+        print(f"⚠️ EXIF load failed: {e}")
+        exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
+
 
     # Physically rotate image according to EXIF orientation
     img = ImageOps.exif_transpose(img)
