@@ -45,34 +45,31 @@ def resize_image(data):
 
 def process_parts(msg, depth=0):
     
-    indent = "  " * depth
-    if msg.is_multipart():
-        print(f"{indent}📦 Multipart type: {msg.get_content_type()}")
-        new_parts = []
-        for part in msg.get_payload():
-            new_part = process_parts(part, depth + 1)
-            new_parts.append(new_part)
-        msg.set_payload(new_parts)
-        return msg
-    else:
-        ctype = msg.get_content_type()
-        disp = msg.get("Content-Disposition", None)
-        filename = msg.get_filename()
-        print(f"{indent}🔍 Part: {ctype} | Disposition: {disp} | Filename: {filename}")
-        if ctype.startswith("image/") and filename:
-            is_inline = (disp is None or disp.startswith("inline"))
-            content_id = msg.get("Content-ID")
-
-            if (disp and disp.startswith("attachment")) or (is_inline and content_id):
-                print(f"{indent}🛠️ Processing image: {filename}")
+        indent = "  " * depth
+        if msg.is_multipart():
+            print(f"{indent}📦 Multipart type: {msg.get_content_type()}")
+            new_parts = []
+            for part in msg.get_payload():
+                new_part = process_parts(part, depth + 1)
+                new_parts.append(new_part)
+            msg.set_payload(new_parts)
+            return msg
+        else:
+            ctype = msg.get_content_type()
+            disp = msg.get("Content-Disposition", None)
+            filename = msg.get_filename()
+            content_id = msg.get("Content-ID") 
+            disp_str = disp if disp else "None"
+            print(f"{indent}🔍 Part: {ctype.ljust(12)} | Disposition: {disp_str.ljust(20)} | Filename: {filename or 'None'}")
+            if ctype.startswith("image/") and filename:
+                print(f"{indent}┌─ 🛠️ Processing image: {filename} ({'inline' if (disp is None or disp.startswith('inline')) else 'attachment'})")
                 original_data = msg.get_payload(decode=True)
                 resized_data = resize_image(original_data)
-                print(f"{indent}> Original size: {len(original_data)//1024} KB")
                 img = Image.open(io.BytesIO(resized_data))
-                print(f"{indent}> Resized to: {img.width}x{img.height}")
-                print(f"{indent}> New size: {len(resized_data)//1024} KB")
-                print(f"{indent}🧪 Policy: {getattr(msg, 'policy', '❌ MISSING')}")
-
+                print(f"{indent}│ > Original size: {len(original_data)//1024} KB")
+                print(f"{indent}│ > Resized to: {img.width}x{img.height}")
+                print(f"{indent}│ > New size: {len(resized_data)//1024} KB")
+                print(f"{indent}└─ 🧪 Policy: {getattr(msg, 'policy', '❌ MISSING')}")
 
                 from email import policy
                 new_part = EmailMessage(policy=msg.policy if hasattr(msg, 'policy') else policy.default)
