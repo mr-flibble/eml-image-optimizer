@@ -5,6 +5,7 @@ import io
 from PIL import Image, ImageOps
 import piexif
 import base64
+from datetime import datetime
 
 #Description: Resize images in email attachments to a maximum of 1920x1080 pixels while preserving aspect ratio.
 def resize_image(data):
@@ -104,6 +105,10 @@ def process_eml(input_path, output_path):
     updated_msg = process_parts(msg)
 
     print("💾 Saving processed email...")
+    updated_msg.add_header(    "X-Resized-By",    f"eml-image-optimizer; {datetime.utcnow().isoformat()}Z; https://github.com/mr-flibble/eml-image-optimizer"
+)
+
+
     with open(output_path, "wb") as f:
         BytesGenerator(f).flatten(updated_msg)
 
